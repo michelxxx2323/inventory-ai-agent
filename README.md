@@ -1,112 +1,114 @@
-# Inventory AI Agent
+# AI Inventory Agent
 
-Agente de estoque com IA para pequenos varejistas e e-commerces. Ele prevê a demanda de cada produto por loja e diz quanto comprar antes que o estoque acabe.
+An intelligent inventory management system for small retailers, powered by AI to optimize stock levels and automate reordering processes.
 
-> **English summary:** AI inventory agent for small retailers. A FastAPI + Supabase backend that forecasts product demand per store with Prophet (30/60/90 days), recommends how much stock to reorder, and measures forecast accuracy against real sales.
+## Features
 
-## O problema
+- AI-driven purchase order recommendations
+- Dynamic pricing suggestions
+- Automated restocking alerts via WhatsApp
+- Demand forecasting analysis (30-60-90 days)
+- Real-time inventory management
+- Integration with Shopify and ERP systems
+- Interactive dashboard with KPIs
 
-Em uma operação pequena de e-commerce, a reposição costuma ser feita no feeling. O resultado aparece em dois lugares: produto parado ocupando caixa, ou ruptura justamente no item que mais vende. Eu vivi isso operando minhas lojas em marketplaces e na St. Clair, e quis uma ferramenta que respondesse a uma pergunta simples: **quanto eu preciso comprar de cada produto, e quando?**
+## Tech Stack
 
-## O que o agente faz
+### Backend
+- Python with FastAPI
+- Supabase (PostgreSQL)
+- LangChain for AI/ML components
+- Docker for containerization
 
-- **Previsão de demanda por produto e por loja**, com horizonte de 30, 60 ou 90 dias, usando o modelo [Prophet](https://facebook.github.io/prophet/) sobre o histórico de vendas.
-- **Recomendação de compra**: demanda prevista + 10% de margem de segurança − estoque atual. Se o resultado for positivo, o agente sugere o pedido; se não, recomenda apenas monitorar.
-- **Nível de confiança** de cada previsão, calculado a partir da largura do intervalo de incerteza do modelo.
-- **Validação do modelo**: antes de prever, o agente testa o modelo nos últimos 30 dias do histórico (MAE). Depois que o período passa, compara a previsão com as vendas reais e registra MAE e RMSE.
-- **Gestão de estoque multi-loja**: cadastro de varejistas, lojas e produtos, ajustes de estoque com histórico de movimentações e ponto de reposição por produto.
-- **Produtos mais vendidos** e trilha de auditoria de preços (preço base, preço atual e custo).
+### Frontend
+- React.js/Next.js for web dashboard
+- React Native for mobile app
 
-## Como funciona
-
-```
-Histórico de vendas ──► Prophet (sazonalidade diária) ──► Demanda prevista (30/60/90d)
-                                                              │
-Estoque atual da loja ────────────────────────────────────────┤
-                                                              ▼
-                                   Recomendação de compra + nível de confiança
-                                                              │
-                              Vendas reais do período ──► MAE / RMSE (acurácia)
-```
-
-## Stack
-
-| Camada | Tecnologia |
-|---|---|
-| API | Python, FastAPI, Pydantic |
-| Banco de dados | Supabase (PostgreSQL), SQLAlchemy, Alembic |
-| Previsão | Prophet, pandas, NumPy, scikit-learn |
-| Testes | pytest |
-| Deploy | Docker |
-
-## Estrutura
+## Project Structure
 
 ```
+ai-inventory-agent/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py        # Endpoints da API
-│   │   ├── core/          # Configuração e conexão com o banco
-│   │   ├── models/        # Varejistas, lojas, produtos, estoque, previsões, pedidos
-│   │   ├── schemas/       # Validação de entrada e saída (Pydantic)
-│   │   └── services/      # Regras de negócio, incluindo o motor de previsão
-│   ├── alembic/           # Migrações do banco
-│   ├── migrations/        # Scripts SQL
-│   └── tests/             # Testes de produto e previsão
-├── Dockerfile
-└── requirements.txt
+│   │   ├── api/           # API endpoints
+│   │   ├── core/          # Core application code
+│   │   ├── models/        # Database models
+│   │   ├── schemas/       # Pydantic schemas
+│   │   ├── services/      # Business logic
+│   │   └── utils/         # Utility functions
+│   ├── tests/             # Python tests
+│   └── alembic/           # Database migrations
+├── frontend/
+│   ├── web/               # React.js web dashboard
+│   └── mobile/            # React Native mobile app
+├── docs/                  # Documentation
+└── docker/               # Docker configuration
 ```
 
-## Principais endpoints
+## Getting Started
 
-| Método | Rota | O que faz |
-|---|---|---|
-| `POST` | `/api/v1/forecasts/generate` | Gera e salva a previsão de um produto em uma loja |
-| `GET` | `/api/v1/stores/{store_id}/products/{product_id}/forecasts/latest` | Última previsão do produto |
-| `GET` | `/api/v1/forecasts/{forecast_id}/accuracy` | Compara a previsão com as vendas reais (MAE/RMSE) |
-| `GET` | `/api/v1/stores/{store_id}/inventory` | Estoque atual da loja |
-| `PATCH` | `/api/v1/inventory/{inventory_id}/adjust` | Ajuste de estoque com registro no histórico |
-| `GET` | `/api/v1/inventories/{inventory_id}/history` | Histórico de movimentações |
-| `GET` | `/api/v1/products/top-sellers` | Produtos mais vendidos |
+1. Clone the repository
+2. Copy `.env.example` to `.env` and fill in your configuration
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Run the development server:
+   ```bash
+   uvicorn backend.app.main:app --reload
+   ```
 
-A documentação completa fica disponível em `/docs` com o servidor rodando.
+## Development Environment Setup
 
-## Como rodar
-
-1. Clone o repositório e crie um ambiente virtual:
+### Backend Setup
+1. Create a virtual environment:
    ```bash
    python -m venv venv
-   venv\Scripts\activate      # Windows
-   source venv/bin/activate   # macOS/Linux
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
-2. Instale as dependências:
+2. Install dependencies:
    ```bash
-   pip install -r backend/requirements.txt
+   pip install -r requirements.txt
    ```
-3. Copie `backend/.env.example` para `backend/.env` e preencha com as credenciais do seu projeto Supabase.
-4. Rode as migrações e suba a API:
+
+### Database Setup
+1. Set up Supabase project
+2. Configure environment variables
+3. Run migrations:
    ```bash
-   cd backend
    alembic upgrade head
-   uvicorn app.main:app --reload
    ```
-5. Testes:
+
+### Frontend Setup
+1. Navigate to frontend/web:
    ```bash
-   pytest
+   cd frontend/web
+   npm install
+   npm run dev
    ```
 
-## Painel web (protótipo)
+## Testing
 
-O protótipo do painel foi feito no Lovable. Ele mostra a visão geral do estoque (valor total, SKUs, giro e itens em falta), a evolução do estoque ao longo do ano e as recomendações da IA: alerta de estoque baixo, sugestão de pedido, excesso de estoque e produtos perto do vencimento. A tela de previsão traz, por produto, a demanda projetada para 30, 60 e 90 dias, a ação recomendada (repor, monitorar ou excesso) e o nível de confiança.
+Run tests with pytest:
+```bash
+pytest
+```
 
-## Status e próximos passos
+## Environment Variables
 
-- [x] Backend, modelo de dados e motor de previsão
-- [x] Validação de acurácia das previsões
-- [x] Protótipo do painel web no Lovable
-- [ ] Conectar o painel à API deste repositório
-- [ ] Alertas de reposição por WhatsApp
-- [ ] Integração com Shopify e ERP para puxar vendas e estoque automaticamente
+Copy `.env.example` to `.env` and configure:
+- Database credentials
+- API keys
+- Environment settings
+- External service configurations
 
-## Autor
+## Contributing
 
-**Michel Soares** · [LinkedIn](https://www.linkedin.com/in/michelsoaresafonso)
+1. Create a feature branch
+2. Make your changes
+3. Run tests
+4. Submit a pull request
+
+## License
+
+[MIT License](LICENSE) 
