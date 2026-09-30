@@ -94,11 +94,16 @@ A documentação completa fica disponível em `/docs` com o servidor rodando.
    pytest
    ```
 
+## Painel web (protótipo)
+
+O protótipo do painel foi feito no Lovable. Ele mostra a visão geral do estoque (valor total, SKUs, giro e itens em falta), a evolução do estoque ao longo do ano e as recomendações da IA: alerta de estoque baixo, sugestão de pedido, excesso de estoque e produtos perto do vencimento. A tela de previsão traz, por produto, a demanda projetada para 30, 60 e 90 dias, a ação recomendada (repor, monitorar ou excesso) e o nível de confiança.
+
 ## Status e próximos passos
 
 - [x] Backend, modelo de dados e motor de previsão
 - [x] Validação de acurácia das previsões
-- [ ] Painel web: a primeira versão foi feita no Replit e não está mais disponível; vai ser refeita
+- [x] Protótipo do painel web no Lovable
+- [ ] Conectar o painel à API deste repositório
 - [ ] Alertas de reposição por WhatsApp
 - [ ] Integração com Shopify e ERP para puxar vendas e estoque automaticamente
 
