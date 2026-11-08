@@ -1,114 +1,110 @@
-# AI Inventory Agent
+# Inventory AI Agent
 
-An intelligent inventory management system for small retailers, powered by AI to optimize stock levels and automate reordering processes.
+An inventory agent for small retailers and e-commerce stores. It forecasts demand for each product in each store and tells you how much to buy before stock runs out.
 
-## Features
+## The problem
 
-- AI-driven purchase order recommendations
-- Dynamic pricing suggestions
-- Automated restocking alerts via WhatsApp
-- Demand forecasting analysis (30-60-90 days)
-- Real-time inventory management
-- Integration with Shopify and ERP systems
-- Interactive dashboard with KPIs
+In a small e-commerce operation, restocking is usually done by gut feeling. The result shows up in two places: slow-moving stock tying up cash, or stockouts on exactly the items that sell best. I lived this running my own marketplace stores and St. Clair, and I wanted a tool that answers one simple question: **how much of each product do I need to buy, and when?**
 
-## Tech Stack
+## What it does
 
-### Backend
-- Python with FastAPI
-- Supabase (PostgreSQL)
-- LangChain for AI/ML components
-- Docker for containerization
+- **Demand forecast per product and per store**, over a 30, 60 or 90-day horizon, using [Prophet](https://facebook.github.io/prophet/) on the sales history.
+- **Purchase recommendation**: forecast demand + a 10% safety margin − current stock. If the result is positive, the agent suggests an order; otherwise it recommends monitoring.
+- **Confidence level** for each forecast, derived from the width of the model's uncertainty interval.
+- **Model validation**: before forecasting, the agent backtests the model on the last 30 days of history (MAE). Once the forecast period has passed, it compares the forecast with actual sales and records MAE and RMSE.
+- **Multi-store inventory management**: retailers, stores and products, stock adjustments with a movement history, and a reorder point per product.
+- **Top sellers** and a price audit trail (base price, current price and cost).
 
-### Frontend
-- React.js/Next.js for web dashboard
-- React Native for mobile app
-
-## Project Structure
+## How it works
 
 ```
-ai-inventory-agent/
+Sales history ──► Prophet (daily seasonality) ──► Forecast demand (30/60/90 days)
+                                                          │
+Current store stock ──────────────────────────────────────┤
+                                                          ▼
+                              Purchase recommendation + confidence level
+                                                          │
+                         Actual sales for the period ──► MAE / RMSE (accuracy)
+```
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| API | Python, FastAPI, Pydantic |
+| Database | Supabase (PostgreSQL), SQLAlchemy, Alembic |
+| Forecasting | Prophet, pandas, NumPy, scikit-learn |
+| Tests | pytest |
+| Deployment | Docker |
+
+## Structure
+
+```
 ├── backend/
 │   ├── app/
-│   │   ├── api/           # API endpoints
-│   │   ├── core/          # Core application code
-│   │   ├── models/        # Database models
-│   │   ├── schemas/       # Pydantic schemas
-│   │   ├── services/      # Business logic
-│   │   └── utils/         # Utility functions
-│   ├── tests/             # Python tests
-│   └── alembic/           # Database migrations
-├── frontend/
-│   ├── web/               # React.js web dashboard
-│   └── mobile/            # React Native mobile app
-├── docs/                  # Documentation
-└── docker/               # Docker configuration
+│   │   ├── main.py        # API endpoints
+│   │   ├── core/          # Settings and database connection
+│   │   ├── models/        # Retailers, stores, products, inventory, forecasts, purchase orders
+│   │   ├── schemas/       # Input and output validation (Pydantic)
+│   │   └── services/      # Business logic, including the forecasting engine
+│   ├── alembic/           # Database migrations
+│   ├── migrations/        # SQL scripts
+│   └── tests/             # Product and forecast tests
+├── Dockerfile
+└── requirements.txt
 ```
 
-## Getting Started
+## Main endpoints
 
-1. Clone the repository
-2. Copy `.env.example` to `.env` and fill in your configuration
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Run the development server:
-   ```bash
-   uvicorn backend.app.main:app --reload
-   ```
+| Method | Route | What it does |
+|---|---|---|
+| `POST` | `/api/v1/forecasts/generate` | Generates and stores a forecast for a product in a store |
+| `GET` | `/api/v1/stores/{store_id}/products/{product_id}/forecasts/latest` | The product's latest forecast |
+| `GET` | `/api/v1/forecasts/{forecast_id}/accuracy` | Compares the forecast with actual sales (MAE/RMSE) |
+| `GET` | `/api/v1/stores/{store_id}/inventory` | Current stock for a store |
+| `PATCH` | `/api/v1/inventory/{inventory_id}/adjust` | Stock adjustment, recorded in the history |
+| `GET` | `/api/v1/inventories/{inventory_id}/history` | Stock movement history |
+| `GET` | `/api/v1/products/top-sellers` | Best-selling products |
 
-## Development Environment Setup
+The full API (23 routes) is documented at `/docs` with the server running.
 
-### Backend Setup
-1. Create a virtual environment:
+## Running it
+
+1. Clone the repository and create a virtual environment:
    ```bash
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   venv\Scripts\activate      # Windows
+   source venv/bin/activate   # macOS/Linux
    ```
-2. Install dependencies:
+2. Install the dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install -r backend/requirements.txt
    ```
-
-### Database Setup
-1. Set up Supabase project
-2. Configure environment variables
-3. Run migrations:
+3. Copy `backend/.env.example` to `backend/.env` and fill in your Supabase project's credentials.
+4. Run the migrations and start the API:
    ```bash
+   cd backend
    alembic upgrade head
+   uvicorn app.main:app --reload
    ```
-
-### Frontend Setup
-1. Navigate to frontend/web:
+5. Tests (they use a real Supabase project, configured in `backend/.env.test`):
    ```bash
-   cd frontend/web
-   npm install
-   npm run dev
+   pytest
    ```
 
-## Testing
+## Web dashboard (prototype)
 
-Run tests with pytest:
-```bash
-pytest
-```
+The dashboard prototype was built in Lovable. It shows an inventory overview (total value, SKUs, turnover and out-of-stock items), how stock evolved over the year, and the AI's recommendations: low-stock alerts, order suggestions, overstock and products close to expiry. The forecast screen shows, for each product, projected demand for 30, 60 and 90 days, the recommended action (restock, monitor or overstock) and the confidence level.
 
-## Environment Variables
+## Status and next steps
 
-Copy `.env.example` to `.env` and configure:
-- Database credentials
-- API keys
-- Environment settings
-- External service configurations
+- [x] Backend, data model and forecasting engine
+- [x] Forecast accuracy validation
+- [x] Web dashboard prototype in Lovable
+- [ ] Connect the dashboard to this repository's API
+- [ ] Restocking alerts via WhatsApp
+- [ ] Shopify and ERP integration to pull sales and stock automatically
 
-## Contributing
+## Author
 
-1. Create a feature branch
-2. Make your changes
-3. Run tests
-4. Submit a pull request
-
-## License
-
-[MIT License](LICENSE) 
+**Michel Soares** · [LinkedIn](https://www.linkedin.com/in/michelsoaresafonso)
